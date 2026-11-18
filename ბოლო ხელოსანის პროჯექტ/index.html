@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="ka" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoPro — ავტოსერვისი, ადმინ პანელი და ნაწილების მაღაზია</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans Georgian -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Official Supabase JS v2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans Georgian"', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            950: '#070b14',
+                            900: '#0d1424',
+                            850: '#131d33',
+                            800: '#1b2742',
+                            700: '#2d3d5e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans Georgian', sans-serif;
+            background-color: #070b14;
+            background-image:
+                radial-gradient(circle at 12% 0%, rgba(245, 158, 11, 0.08), transparent 36%),
+                radial-gradient(circle at 88% 12%, rgba(16, 185, 129, 0.06), transparent 34%);
+            color: #f1f5f9;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1424; }
+        ::-webkit-scrollbar-thumb { background: #2d3d5e; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+        
+        .glass-card {
+            background: rgba(13, 20, 36, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .geo-plate {
+            display: inline-flex;
+            align-items: stretch;
+            background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+            color: #0f172a;
+            border: 1.5px solid #1e293b;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+        }
+        .geo-plate-strip {
+            background: #1d4ed8;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .geo-plate-num {
+            padding: 1px 7px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-amber-500 selection:text-slate-950 min-h-screen flex flex-col">
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- TOP NAVIGATION -->
+    <header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-xl border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between min-h-[74px] py-2.5 gap-3">
+                
+                <!-- Brand Logo -->
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="handleLogoClick()">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/25 group-hover:scale-105 transition">
+                        <i data-lucide="wrench" class="w-5 h-5 stroke-[2.5]"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg sm:text-xl font-extrabold tracking-tight text-white block leading-none">
+                                AUTO<span class="text-amber-400">PRO</span>
+                            </span>
+                            <!-- Connection Status Indicator -->
+                            <span id="db-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-white/10">
+                                <span id="db-status-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                                <span id="db-status-text">კავშირი...</span>
+                            </span>
+                        </div>
+                        <span class="text-[11px] text-slate-400 font-medium">სერვისი & ავტონაწილები</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-white/10">
+                    <button onclick="switchView('store')" id="nav-btn-store"
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md">
+                        <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                        <span>ნაწილების მაღაზია</span>
+                    </button>
+
+                    <button onclick="handleWorkspaceNavClick()" id="nav-btn-workspace"
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+                        <i data-lucide="car" class="w-4 h-4 text-amber-400"></i>
+                        <span id="nav-workspace-label">ხელოსნის კაბინეტი</span>
+                    </button>
+                </nav>
+
+                <!-- Auth Area -->
+                <div class="flex items-center gap-2.5">
+                    <div id="auth-status-area"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- VIEW 1: PUBLIC PARTS STORE -->
+    <main id="view-store" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="relative overflow-hidden rounded-3xl glass-card p-6 sm:p-10 mb-8 shadow-2xl">
+            <div class="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div class="max-w-2xl">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-4">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>მარაგები ახლდება რეალურ დროში</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight mb-3 leading-tight">
+                        ავტონაწილების საწყობი და <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-500">ონლაინ შეკვეთა</span>
+                    </h1>
+                    <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+                        შეამოწმეთ სასურველი ავტონაწილების ხელმისაწვდომობა და გააფორმეთ შეკვეთა მარტივად. თანამშრომლებისთვის შესასვლელად გამოიყენეთ ავტორიზაცია.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap sm:flex-nowrap gap-3.5">
+                    <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-4 min-w-[140px] shadow-lg">
+                        <span class="text-xs text-slate-400 block">სულ დასახელება</span>
+                        <span id="store-total-types" class="text-2xl sm:text-3xl font-extrabold text-white mt-1 block">0</span>
+                    </div>
+                    <div class="bg-slate-950/80 border border-emerald-500/20 rounded-2xl p-4 min-w-[140px] shadow-lg">
+                        <span class="text-xs text-slate-400 block">მარაგშია</span>
+                        <span id="store-in-stock-count" class="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1 block">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="glass-card rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div class="relative flex-1">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="parts-search-input" oninput="renderPartsTable()" placeholder="ძებნა ნაწილის სახელით ან მანქანის მოდელით..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition">
+            </div>
+
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                <select id="parts-category-filter" onchange="renderPartsTable()" class="px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                    <option value="ყველა">ყველა კატეგორია</option>
+                    <option value="ძრავი და ფილტრები">ძრავი და ფილტრები</option>
+                    <option value="სავალი ნაწილი">სავალი ნაწილი</option>
+                    <option value="სამუხრუჭე სისტემა">სამუხრუჭე სისტემა</option>
+                    <option value="ელექტროობა">ელექტროობა</option>
+                    <option value="ავტონაწილები">ავტონაწილები</option>
+                </select>
+
+                <select id="parts-stock-filter" onchange="renderPartsTable()" class="px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                    <option value="all">ყველა სტატუსი</option>
+                    <option value="instock">მხოლოდ მარაგშია</option>
+                    <option value="out">ამოწურულია</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- PARTS INVENTORY TABLE -->
+        <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/50">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                    </div>
+                    <span>ნაწილების ჩამონათვალი და მარაგები</span>
+                </h2>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-950/80 border-b border-white/10 text-xs uppercase tracking-wider text-slate-400">
+                            <th class="py-4 px-6 font-semibold">ნაწილის დასახელება</th>
+                            <th class="py-4 px-6 font-semibold">კატეგორია / მოდელი</th>
+                            <th class="py-4 px-6 font-semibold">ფასი</th>
+                            <th class="py-4 px-6 font-semibold">რაოდენობა</th>
+                            <th class="py-4 px-6 font-semibold">სტატუსი</th>
+                            <th class="py-4 px-6 font-semibold text-right">მოქმედება</th>
+                        </tr>
+                    </thead>
+                    <tbody id="public-parts-tbody" class="divide-y divide-white/5 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- VIEW 2: MECHANIC / ADMIN WORKSPACE -->
+    <main id="view-workspace" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="relative overflow-hidden glass-card border-amber-500/25 rounded-3xl p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xl">
+            <div class="relative z-10 flex items-center gap-4">
+                <div id="mech-avatar" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-xl font-extrabold">
+                    გ
+                </div>
+                <div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <h1 id="mech-welcome-name" class="text-xl sm:text-2xl font-extrabold text-white">გიორგი</h1>
+                        <span id="mech-specialty-badge" class="px-3 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-xs font-bold border border-amber-500/30">
+                            ძრავის ხელოსანი
+                        </span>
+                    </div>
+                    <p id="mech-welcome-desc" class="text-slate-400 text-xs sm:text-sm mt-1">
+                        პირადი სამუშაო სივრცე
+                    </p>
+                </div>
+            </div>
+
+            <div class="relative z-10 flex flex-wrap items-center gap-2.5">
+                <button id="btn-admin-add-mechanic" onclick="openModal('add-mechanic-modal')" class="hidden px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-xs sm:text-sm font-extrabold transition flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    <span>ხელოსნის დამატება</span>
+                </button>
+
+                <button id="btn-admin-add-part" onclick="openModal('manage-part-modal')" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                    <i data-lucide="package-plus" class="w-4 h-4 text-emerald-400"></i>
+                    <span>ნაწილის დამატება</span>
+                </button>
+
+                <button onclick="logoutUser()" class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>გასვლა</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ADMIN SUB-TABS -->
+        <div id="admin-subtabs-bar" class="hidden mb-6 flex flex-wrap items-center gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-white/10 w-fit">
+            <button onclick="switchAdminTab('cars')" id="admin-tab-cars" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 text-slate-950 transition flex items-center gap-2">
+                <i data-lucide="car" class="w-4 h-4"></i>
+                <span>ყველა მანქანა</span>
+            </button>
+            <button onclick="switchAdminTab('mechanics')" id="admin-tab-mechanics" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2">
+                <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
+                <span>ხელოსნები და ლოგინები</span>
+            </button>
+            <button onclick="switchAdminTab('orders')" id="admin-tab-orders" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2">
+                <i data-lucide="receipt" class="w-4 h-4 text-emerald-400"></i>
+                <span>გამოწერილი ნივთები & საწყობი</span>
+            </button>
+        </div>
+
+        <!-- STATS CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">გასაშვები მანქანები</span>
+                    <p id="stat-active-cars" class="text-3xl font-extrabold text-amber-400 mt-1.5">0</p>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <i data-lucide="clock" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">გაშვებული მანქანები</span>
+                    <p id="stat-completed-cars" class="text-3xl font-extrabold text-emerald-400 mt-1.5">0</p>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">გამომუშავებული თანხა</span>
+                    <p id="stat-total-earned" class="text-3xl font-extrabold text-white mt-1.5">0 ₾</p>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <i data-lucide="wallet" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION A: CARS WORKSPACE -->
+        <div id="workspace-section-cars" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div class="lg:col-span-4 glass-card rounded-3xl p-6 shadow-2xl">
+                <h2 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-amber-400"></i>
+                    <span>ახალი მანქანის მიღება</span>
+                </h2>
+                <p class="text-xs text-slate-400 mb-5">ჩაწერეთ ნომერი, გადაიღეთ სურათი და მიუთითეთ ფასი.</p>
+
+                <form id="add-car-form" onsubmit="handleAddCar(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">მანქანის ნომერი *</label>
+                        <input type="text" id="car-plate" required placeholder="მაგ: AA-123-BB"
+                            class="w-full px-4 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-white font-mono uppercase tracking-wider text-sm focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">მანქანის მოდელი *</label>
+                        <input type="text" id="car-model" required placeholder="მაგ: BMW E60 530i"
+                            class="w-full px-4 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div id="admin-assign-mechanic-wrapper" class="hidden">
+                        <label class="block text-xs font-semibold text-amber-400 mb-1.5">მიამაგრე ხელოსანს *</label>
+                        <select id="car-assign-mechanic" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-amber-500/30 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500"></select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">რა სჭირს მანქანას *</label>
+                        <textarea id="car-problem" rows="3" required placeholder="მაგ: ძრავის ღვედის შეცვლა..."
+                            class="w-full px-4 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">ფასი (₾) *</label>
+                            <input type="number" step="1" min="0" id="car-price" required placeholder="150"
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-white font-bold text-sm focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">სტატუსი</label>
+                            <select id="car-status" class="w-full px-3 py-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500">
+                                <option value="active">გასაშვები</option>
+                                <option value="completed">გაშვებული</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">სურათის გადაღება / ატვირთვა</label>
+                        <label for="car-photo-input" class="cursor-pointer flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-slate-700 hover:border-amber-500 bg-slate-950/60 transition text-center">
+                            <i data-lucide="camera" class="w-7 h-7 text-amber-400 mb-1.5"></i>
+                            <span class="text-xs font-semibold text-white">დააჭირეთ ფოტოს გადასაღებად</span>
+                        </label>
+                        <input type="file" id="car-photo-input" accept="image/*" capture="environment" onchange="handlePhotoPreview(event)" class="hidden">
+
+                        <div id="photo-preview-wrapper" class="hidden mt-3 relative rounded-xl overflow-hidden border border-slate-700">
+                            <img id="photo-preview-img" src="" alt="Preview" class="w-full h-36 object-cover">
+                            <button type="button" onclick="clearPhotoPreview()" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-950/80 text-white hover:bg-red-600 flex items-center justify-center text-xs">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-submit-car" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-extrabold text-sm transition flex items-center justify-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>მანქანის დამატება ცხრილში</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="lg:col-span-8 glass-card rounded-3xl overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/50">
+                    <div>
+                        <h2 id="cars-table-heading" class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-5 h-5 text-amber-400"></i>
+                            <span>ჩემი ნამუშევრები და მანქანები</span>
+                        </h2>
+                        <p id="cars-table-subheading" class="text-xs text-slate-400 mt-0.5">რეალურ დროში სინქრონიზებული ცხრილი</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="admin-mechanic-filter" onchange="renderCarsTable()" class="hidden px-3 py-2 rounded-xl bg-slate-950 border border-amber-500/30 text-xs font-bold text-amber-400">
+                            <option value="all">ყველა ხელოსანი</option>
+                        </select>
+
+                        <select id="car-status-filter" onchange="renderCarsTable()" class="px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs font-semibold text-slate-200">
+                            <option value="all">ყველა სტატუსი</option>
+                            <option value="active">მხოლოდ გასაშვები</option>
+                            <option value="completed">გაშვებული</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400">
+                                <th class="py-3.5 px-4 font-semibold">ფოტო</th>
+                                <th class="py-3.5 px-4 font-semibold">ნომერი / მოდელი</th>
+                                <th class="py-3.5 px-4 font-semibold">რა სჭირს</th>
+                                <th class="py-3.5 px-4 font-semibold text-center">ეტაპი</th>
+                                <th id="cars-col-mechanic" class="py-3.5 px-4 font-semibold hidden">ხელოსანი</th>
+                                <th class="py-3.5 px-4 font-semibold">ფასი</th>
+                                <th class="py-3.5 px-4 font-semibold">სტატუსი</th>
+                                <th class="py-3.5 px-4 font-semibold text-right">მოქმედება</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cars-table-tbody" class="divide-y divide-white/5 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION B: MECHANICS -->
+        <div id="workspace-section-mechanics" class="hidden space-y-6">
+            <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/50">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
+                            <span>ხელოსნების სია და ავტორიზაციის მონაცემები</span>
+                        </h2>
+                    </div>
+                    <button onclick="openModal('add-mechanic-modal')" class="px-4 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs flex items-center gap-2 w-fit">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span>+ ახალი ხელოსნის შექმნა</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 border-b border-white/10 text-xs uppercase tracking-wider text-slate-400">
+                                <th class="py-4 px-6 font-semibold">ხელოსანი</th>
+                                <th class="py-4 px-6 font-semibold">სპეციალობა</th>
+                                <th class="py-4 px-6 font-semibold">ლოგინი</th>
+                                <th class="py-4 px-6 font-semibold">პაროლი</th>
+                                <th class="py-4 px-6 font-semibold">სტატისტიკა</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-mechanics-tbody" class="divide-y divide-white/5 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION C: ORDERS & STOCK -->
+        <div id="workspace-section-orders" class="hidden space-y-8">
+            <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/50">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="shopping-bag" class="w-5 h-5 text-emerald-400"></i>
+                        <span>გამოწერილი ნივთები</span>
+                    </h2>
+                    <span id="admin-orders-count-badge" class="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-xs font-bold">0 შეკვეთა</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 border-b border-white/10 text-xs uppercase tracking-wider text-slate-400">
+                                <th class="py-3.5 px-6 font-semibold">ნაწილი</th>
+                                <th class="py-3.5 px-6 font-semibold">რაოდენობა</th>
+                                <th class="py-3.5 px-6 font-semibold">თანხა</th>
+                                <th class="py-3.5 px-6 font-semibold">მყიდველი</th>
+                                <th class="py-3.5 px-6 font-semibold text-right">დრო</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-orders-tbody" class="divide-y divide-white/5 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/50">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="boxes" class="w-5 h-5 text-amber-400"></i>
+                        <span>საწყობის ნაშთები</span>
+                    </h2>
+                    <button onclick="openModal('manage-part-modal')" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs">+ ნაწილის დამატება</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 border-b border-white/10 text-xs uppercase tracking-wider text-slate-400">
+                                <th class="py-3.5 px-6 font-semibold">ნაწილი</th>
+                                <th class="py-3.5 px-6 font-semibold">მოდელი</th>
+                                <th class="py-3.5 px-6 font-semibold">ფასი</th>
+                                <th class="py-3.5 px-6 font-semibold">მარაგი</th>
+                                <th class="py-3.5 px-6 font-semibold text-right">მოქმედება</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-stock-tbody" class="divide-y divide-white/5 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODALS -->
+    <div id="login-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card border-white/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button onclick="closeModal('login-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-extrabold text-white mb-1">თანამშრომლის ავტორიზაცია</h3>
+            <p class="text-slate-400 text-xs mt-1 mb-5">შედით სისტემაში თქვენი ლოგინით და პაროლით.</p>
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">მომხმარებელი</label>
+                    <input type="text" id="login-username" required placeholder="admin" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">პაროლი</label>
+                    <input type="password" id="login-password" required placeholder="•••" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <p id="login-error" class="hidden text-xs text-red-400 font-semibold">არასწორი მომხმარებელი ან პაროლი!</p>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-extrabold text-sm">შესვლა კაბინეტში</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-mechanic-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card border-amber-500/30 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button onclick="closeModal('add-mechanic-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-extrabold text-white mb-4">ახალი ხელოსნის დამატება</h3>
+            <form onsubmit="handleAddNewMechanic(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">სახელი და გვარი *</label>
+                    <input type="text" id="new-mech-name" required placeholder="ნიკა" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">სპეციალობა *</label>
+                    <input type="text" id="new-mech-specialty" required placeholder="მეთუნუქე" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-1.5">ლოგინი *</label>
+                        <input type="text" id="new-mech-username" required placeholder="nika" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-1.5">პაროლი *</label>
+                        <input type="text" id="new-mech-password" required placeholder="1234" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-sm">დამატება</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="buy-part-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card border-white/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button onclick="closeModal('buy-part-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-extrabold text-white mb-1">ნაწილის შეძენა</h3>
+            <p id="buy-part-title" class="text-sm text-amber-400 font-semibold mb-4"></p>
+            <form onsubmit="confirmBuyPart(event)" class="space-y-4">
+                <input type="hidden" id="buy-part-id">
+                <div class="p-3.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between text-sm">
+                    <span class="text-slate-400">ერთეულის ფასი:</span>
+                    <span id="buy-part-unit-price" class="font-extrabold text-white">0 ₾</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">რაოდენობა (მარაგშია: <span id="buy-part-max-stock" class="text-emerald-400 font-bold">0</span>)</label>
+                    <input type="number" id="buy-part-qty" min="1" value="1" oninput="updateBuyTotal()" required class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white font-bold text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">სახელი და ტელეფონი *</label>
+                    <input type="text" id="buy-customer-info" required placeholder="ლაშა — 599 11 22 33" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-emerald-300">სულ გადასახდელი:</span>
+                    <span id="buy-part-total" class="text-lg font-extrabold text-emerald-400">0 ₾</span>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-sm">შეკვეთის დადასტურება</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="manage-part-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card border-white/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button onclick="closeModal('manage-part-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-extrabold text-white mb-4">ახალი ნაწილის დამატება</h3>
+            <form onsubmit="handleAddNewPart(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">დასახელება *</label>
+                    <input type="text" id="new-part-name" required placeholder="ხუნდები" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">მოდელი *</label>
+                    <input type="text" id="new-part-model" required placeholder="Mercedes W211" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">ფასი (₾) *</label>
+                        <input type="number" id="new-part-price" required placeholder="85" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">რაოდენობა *</label>
+                        <input type="number" id="new-part-stock" required placeholder="10" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-sm">დამატება</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-car-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card border-white/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative">
+            <button onclick="closeModal('edit-car-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-extrabold text-white mb-1">რედაქტირება</h3>
+            <p id="edit-car-subtitle" class="text-xs text-amber-400 font-mono mb-5"></p>
+            <form onsubmit="saveCarEdits(event)" class="space-y-4">
+                <input type="hidden" id="edit-car-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">რა სჭირს</label>
+                    <textarea id="edit-car-problem" rows="3" required class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">ფასი (₾)</label>
+                    <input type="number" id="edit-car-price" required class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-sm">შენახვა</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="image-lightbox-modal" onclick="closeModal('image-lightbox-modal')" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out">
+        <div class="max-w-3xl w-full bg-slate-900 border border-white/15 rounded-3xl overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            <div class="relative">
+                <img id="lightbox-img" src="" alt="Car Photo" class="w-full max-h-[75vh] object-contain bg-black">
+                <button onclick="closeModal('image-lightbox-modal')" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-4 flex items-center justify-between bg-slate-900">
+                <div>
+                    <span id="lightbox-plate" class="font-mono font-bold text-amber-400 text-base"></span>
+                    <p id="lightbox-desc" class="text-xs text-slate-300 mt-0.5"></p>
+                </div>
+                <span id="lightbox-price" class="font-extrabold text-emerald-400 text-lg"></span>
+            </div>
+        </div>
+    </div>
+
+    <footer class="border-t border-white/10 bg-slate-950/90 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            <span>© 2026 AutoPro — რეალური დროის ავტოსერვისი და საწყობი</span>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // ============================================================
+        // SUPABASE API CONFIGURATION (შენი რეალური გასაღებით)
+        // ============================================================
+        const EMBEDDED_SUPABASE_URL = "https://teqsbjwnrspajbhhzlyg.supabase.co";
+        const EMBEDDED_SUPABASE_KEY = "sb_publishable_9AcDyf3Uc7oUQmanS3ThMQ_Egjkt_aM4a8q82w0Y";
+
+        const DEFAULT_ACCOUNTS = {
+            admin: { username: 'admin', password: 'vajavar800', name: 'ადმინისტრატორი', role: 'admin', specialty: 'სერვისის მენეჯერი' },
+            giorgi: { username: 'giorgi', password: '123', name: 'გიორგი ბერიძე', role: 'mechanic', specialty: 'ძრავის ხელოსანი' },
+            dato: { username: 'dato', password: '123', name: 'დავით კაპანაძე', role: 'mechanic', specialty: 'სავალი ნაწილი' },
+            levani: { username: 'levani', password: '123', name: 'ლევან მაისურაძე', role: 'mechanic', specialty: 'ელექტრიკოსი' },
+            zura: { username: 'zura', password: '123', name: 'ზურა წერეთელი', role: 'mechanic', specialty: 'მეთუნუქე' },
+            misha: { username: 'misha', password: '123', name: 'მიხეილ ქავთარაძე', role: 'mechanic', specialty: 'მალიარი' }
+        };
+
+        let accounts = { ...DEFAULT_ACCOUNTS };
+        let cars = [];
+        let parts = [];
+        let orders = [];
+        let currentUser = JSON.parse(sessionStorage.getItem('autopro_user')) || null;
+        let currentView = currentUser ? 'workspace' : 'store';
+        let currentAdminTab = 'cars';
+        let uploadedPhotoBase64 = '';
+        let supabaseClient = null;
+        let realtimeChannel = null;
+
+        function setConnectionStatus(status) {
+            const badge = document.getElementById('db-status-badge');
+            const dot = document.getElementById('db-status-dot');
+            const text = document.getElementById('db-status-text');
+            if (!badge) return;
+
+            if (status === 'online') {
+                badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+                text.textContent = 'ONLINE';
+            } else {
+                badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30';
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+                text.textContent = 'OFFLINE';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (window.lucide) lucide.createIcons();
+            updateAuthHeaderUI();
+            await initSupabaseConnection();
+
+            if (currentUser) {
+                switchView('workspace');
+            } else {
+                switchView('store');
+            }
+
+            setInterval(() => {
+                if (supabaseClient && !document.hidden) {
+                    syncAllFromSupabase();
+                }
+            }, 5000);
+
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && supabaseClient) {
+                    syncAllFromSupabase();
+                }
+            });
+        });
+
+        async function initSupabaseConnection() {
+            try {
+                supabaseClient = window.supabase.createClient(EMBEDDED_SUPABASE_URL, EMBEDDED_SUPABASE_KEY);
+                const success = await syncAllFromSupabase();
+                if (success) {
+                    setConnectionStatus('online');
+                    subscribeToRealtimeChanges();
+                } else {
+                    setConnectionStatus('offline');
+                }
+            } catch (err) {
+                setConnectionStatus('offline');
+            }
+        }
+
+        async function syncAllFromSupabase() {
+            if (!supabaseClient) return false;
+
+            try {
+                const [accRes, carsRes, partsRes, ordersRes] = await Promise.all([
+                    supabaseClient.from('autopro_accounts').select('*'),
+                    supabaseClient.from('autopro_cars').select('*').order('id', { ascending: false }),
+                    supabaseClient.from('autopro_parts').select('*').order('id', { ascending: false }),
+                    supabaseClient.from('autopro_orders').select('*').order('id', { ascending: false })
+                ]);
+
+                if (accRes.error || carsRes.error || partsRes.error || ordersRes.error) {
+                    return false;
+                }
+
+                const map = { ...DEFAULT_ACCOUNTS };
+                if (accRes.data) {
+                    accRes.data.forEach(a => {
+                        map[a.username.toLowerCase().trim()] = a;
+                    });
+                }
+                accounts = map;
+
+                cars = (carsRes.data || []).map(c => ({
+                    id: c.id,
+                    plate: c.plate,
+                    model: c.model,
+                    problem: c.problem,
+                    price: Number(c.price || 0),
+                    status: c.status,
+                    mechanicUser: c.mechanic_user,
+                    mechanicName: c.mechanic_name,
+                    photo: c.photo,
+                    createdAt: c.created_at
+                }));
+
+                parts = (partsRes.data || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    category: p.category || 'ავტონაწილები',
+                    model: p.model,
+                    price: Number(p.price || 0),
+                    stock: Number(p.stock || 0)
+                }));
+
+                orders = (ordersRes.data || []).map(o => ({
+                    id: o.id,
+                    partName: o.part_name,
+                    qty: Number(o.qty || 1),
+                    total: Number(o.total || 0),
+                    customer: o.customer,
+                    time: o.time
+                }));
+
+                refreshActiveViewUI();
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function subscribeToRealtimeChanges() {
+            if (!supabaseClient) return;
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+            }
+
+            realtimeChannel = supabaseClient
+                .channel('autopro-live-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'autopro_cars' }, () => syncAllFromSupabase())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'autopro_parts' }, () => syncAllFromSupabase())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'autopro_orders' }, () => syncAllFromSupabase())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'autopro_accounts' }, () => syncAllFromSupabase())
+                .subscribe();
+        }
+
+        function refreshActiveViewUI() {
+            if (currentView === 'workspace' && currentUser) {
+                renderWorkspace();
+            } else {
+                renderPartsTable();
+            }
+        }
+
+        function showToast(title, message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-slate-900/95 border-emerald-500/50 text-white',
+                warning: 'bg-slate-900/95 border-amber-500/50 text-white',
+                error: 'bg-slate-900/95 border-red-500/50 text-white'
+            };
+            const iconNames = { success: 'check-circle-2', warning: 'bell', error: 'alert-circle' };
+            const iconColors = { success: 'text-emerald-400', warning: 'text-amber-400', error: 'text-red-400' };
+
+            toast.className = `pointer-events-auto backdrop-blur-xl p-4 rounded-2xl border shadow-2xl flex items-start gap-3 transition-all duration-300 ${colors[type]}`;
+            toast.innerHTML = `
+                <i data-lucide="${iconNames[type]}" class="w-5 h-5 mt-0.5 shrink-0 ${iconColors[type]}"></i>
+                <div class="flex-1">
+                    <h4 class="text-xs font-extrabold">${title}</h4>
+                    <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">${message}</p>
+                </div>
+            `;
+            container.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function handleLogoClick() {
+            if (currentUser && currentUser.role === 'mechanic') {
+                switchView('workspace');
+            } else {
+                switchView('store');
+            }
+        }
+
+        function switchView(viewName) {
+            if (viewName === 'store' && currentUser && currentUser.role === 'mechanic') {
+                viewName = 'workspace';
+            }
+
+            currentView = viewName;
+            const storeView = document.getElementById('view-store');
+            const workView = document.getElementById('view-workspace');
+            const btnStore = document.getElementById('nav-btn-store');
+            const btnWork = document.getElementById('nav-btn-workspace');
+
+            if (currentUser && currentUser.role === 'mechanic') {
+                btnStore.classList.add('hidden');
+            } else {
+                btnStore.classList.remove('hidden');
+            }
+
+            if (viewName === 'workspace') {
+                if (!currentUser) {
+                    openModal('login-modal');
+                    return;
+                }
+                storeView.classList.add('hidden');
+                workView.classList.remove('hidden');
+
+                btnWork.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md';
+                btnStore.className = `${(currentUser && currentUser.role === 'mechanic') ? 'hidden' : 'flex'} px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800`;
+
+                renderWorkspace();
+            } else {
+                workView.classList.add('hidden');
+                storeView.classList.remove('hidden');
+
+                btnStore.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md';
+                btnWork.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800';
+
+                renderPartsTable();
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function handleWorkspaceNavClick() {
+            if (currentUser) {
+                switchView('workspace');
+            } else {
+                openModal('login-modal');
+            }
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const user = document.getElementById('login-username').value.trim().toLowerCase();
+            const pass = document.getElementById('login-password').value.trim();
+
+            const account = accounts[user];
+            const isValidLogin = user === 'admin'
+                ? pass === DEFAULT_ACCOUNTS.admin.password
+                : account && String(account.password).trim() === pass;
+
+            if (isValidLogin) {
+                currentUser = user === 'admin' ? DEFAULT_ACCOUNTS.admin : account;
+                sessionStorage.setItem('autopro_user', JSON.stringify(currentUser));
+                document.getElementById('login-error').classList.add('hidden');
+                closeModal('login-modal');
+                updateAuthHeaderUI();
+                switchView('workspace');
+                showToast('ავტორიზაცია წარმატებულია', `მოგესალმებით, ${currentUser.name}!`, 'success');
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function logoutUser() {
+            currentUser = null;
+            sessionStorage.removeItem('autopro_user');
+            updateAuthHeaderUI();
+            switchView('store');
+            showToast('გასვლა', 'თქვენ გამოხვედით კაბინეტიდან.', 'warning');
+        }
+
+        function updateAuthHeaderUI() {
+            const area = document.getElementById('auth-status-area');
+            const navWorkspaceLabel = document.getElementById('nav-workspace-label');
+
+            if (currentUser) {
+                navWorkspaceLabel.textContent = currentUser.role === 'admin' ? 'ადმინ პანელი' : 'ჩემი კაბინეტი';
+                area.innerHTML = `
+                    <button onclick="switchView('workspace')" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-white text-xs font-bold flex items-center gap-2 shadow-md">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>${currentUser.name.split(' ')[0]}</span>
+                    </button>
+                `;
+            } else {
+                navWorkspaceLabel.textContent = 'ხელოსნის კაბინეტი';
+                area.innerHTML = `
+                    <button onclick="handleWorkspaceNavClick()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-amber-400 text-xs font-bold flex items-center gap-1.5">
+                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                        <span>შესვლა</span>
+                    </button>
+                `;
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function renderWorkspace() {
+            if (!currentUser) return;
+            const isAdmin = currentUser.role === 'admin';
+
+            document.getElementById('mech-avatar').textContent = currentUser.name.charAt(0);
+            document.getElementById('mech-welcome-name').textContent = currentUser.name;
+            document.getElementById('mech-specialty-badge').textContent = currentUser.specialty;
+            document.getElementById('mech-welcome-desc').textContent = isAdmin
+                ? 'ადმინისტრატორის მართვის პანელი — ყველა ცვლილება ავტომატურად აისახება ყველა მოწყობილობაზე.'
+                : 'პირადი სამუშაო კაბინეტი — აქ ხედავთ მხოლოდ თქვენს მიერ შესრულებულ და მიმდინარე სამუშაოებს.';
+
+            const btnAddMech = document.getElementById('btn-admin-add-mechanic');
+            const btnAddPart = document.getElementById('btn-admin-add-part');
+            const adminSubtabs = document.getElementById('admin-subtabs-bar');
+            const adminMechFilter = document.getElementById('admin-mechanic-filter');
+            const adminAssignWrapper = document.getElementById('admin-assign-mechanic-wrapper');
+            const mechColumnHeader = document.getElementById('cars-col-mechanic');
+
+            if (isAdmin) {
+                btnAddMech.classList.remove('hidden');
+                btnAddPart.classList.remove('hidden');
+                adminSubtabs.classList.remove('hidden');
+                adminMechFilter.classList.remove('hidden');
+                adminAssignWrapper.classList.remove('hidden');
+                mechColumnHeader.classList.remove('hidden');
+
+                document.getElementById('cars-table-heading').innerHTML = `
+                    <i data-lucide="clipboard-list" class="w-5 h-5 text-amber-400"></i>
+                    <span>ყველა ხელოსნის და გაკეთებული მანქანის ცხრილი</span>
+                `;
+                populateAdminMechanicSelects();
+                switchAdminTab(currentAdminTab);
+            } else {
+                btnAddMech.classList.add('hidden');
+                btnAddPart.classList.add('hidden');
+                adminSubtabs.classList.add('hidden');
+                adminMechFilter.classList.add('hidden');
+                adminAssignWrapper.classList.add('hidden');
+                mechColumnHeader.classList.add('hidden');
+
+                document.getElementById('cars-table-heading').innerHTML = `
+                    <i data-lucide="clipboard-list" class="w-5 h-5 text-amber-400"></i>
+                    <span>ჩემი ნამუშევრები და მანქანები</span>
+                `;
+                document.getElementById('workspace-section-cars').classList.remove('hidden');
+                document.getElementById('workspace-section-mechanics').classList.add('hidden');
+                document.getElementById('workspace-section-orders').classList.add('hidden');
+            }
+
+            const relevantCars = isAdmin ? cars : cars.filter(c => c.mechanicUser === currentUser.username);
+            const activeCount = relevantCars.filter(c => c.status === 'active').length;
+            const completedCount = relevantCars.filter(c => c.status === 'completed').length;
+            const totalMoney = relevantCars.reduce((sum, c) => sum + Number(c.price || 0), 0);
+
+            document.getElementById('stat-active-cars').textContent = activeCount;
+            document.getElementById('stat-completed-cars').textContent = completedCount;
+            document.getElementById('stat-total-earned').textContent = `${totalMoney.toLocaleString()} ₾`;
+
+            renderCarsTable();
+            if (isAdmin) {
+                renderAdminMechanicsTable();
+                renderAdminOrdersAndStock();
+            }
+        }
+
+        function switchAdminTab(tab) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            currentAdminTab = tab;
+
+            ['cars', 'mechanics', 'orders'].forEach(t => {
+                const btn = document.getElementById(`admin-tab-${t}`);
+                const sec = document.getElementById(`workspace-section-${t}`);
+                if (t === tab) {
+                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 text-slate-950 transition flex items-center gap-2 shadow-md';
+                    sec.classList.remove('hidden');
+                } else {
+                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2';
+                    sec.classList.add('hidden');
+                }
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function populateAdminMechanicSelects() {
+            const filterSelect = document.getElementById('admin-mechanic-filter');
+            const assignSelect = document.getElementById('car-assign-mechanic');
+            const currentFilterVal = filterSelect.value;
+
+            const mechanicsList = Object.values(accounts).filter(a => a.role === 'mechanic');
+
+            filterSelect.innerHTML = `<option value="all">ყველა ხელოსანი (${mechanicsList.length})</option>` +
+                mechanicsList.map(m => `<option value="${m.username}">${m.name} (${m.specialty})</option>`).join('');
+
+            if ([...filterSelect.options].some(o => o.value === currentFilterVal)) {
+                filterSelect.value = currentFilterVal;
+            }
+
+            assignSelect.innerHTML = mechanicsList.map(m => `<option value="${m.username}">${m.name} — ${m.specialty}</option>`).join('');
+        }
+
+        async function handleAddNewMechanic(e) {
+            e.preventDefault();
+            if (!currentUser || currentUser.role !== 'admin' || !supabaseClient) return;
+
+            const name = document.getElementById('new-mech-name').value.trim();
+            const specialty = document.getElementById('new-mech-specialty').value.trim();
+            const username = document.getElementById('new-mech-username').value.trim().toLowerCase().replace(/\s+/g, '');
+            const password = document.getElementById('new-mech-password').value.trim();
+
+            if (accounts[username]) {
+                showToast('ლოგინი დაკავებულია', `მომხმარებელი „${username}“ უკვე არსებობს.`, 'error');
+                return;
+            }
+
+            const newAccount = { username, password, name, role: 'mechanic', specialty };
+            const { error } = await supabaseClient.from('autopro_accounts').insert(newAccount);
+
+            if (error) {
+                showToast('შეცდომა', 'ვერ მოხერხდა ბაზაში შენახვა: ' + error.message, 'error');
+                return;
+            }
+
+            await syncAllFromSupabase();
+            e.target.reset();
+            closeModal('add-mechanic-modal');
+            switchAdminTab('mechanics');
+            showToast('ხელოსანი დაემატა!', name, 'success');
+        }
+
+        function renderAdminMechanicsTable() {
+            const tbody = document.getElementById('admin-mechanics-tbody');
+            const mechanicsList = Object.values(accounts).filter(a => a.role === 'mechanic');
+
+            tbody.innerHTML = mechanicsList.map(mech => {
+                const mechCars = cars.filter(c => c.mechanicUser === mech.username);
+                const doneCars = mechCars.filter(c => c.status === 'completed').length;
+
+                return `
+                    <tr class="hover:bg-slate-850/60 transition">
+                        <td class="py-4 px-6 font-bold text-white">${mech.name}</td>
+                        <td class="py-4 px-6"><span class="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 text-xs font-semibold">${mech.specialty}</span></td>
+                        <td class="py-4 px-6 font-mono font-bold text-emerald-400">${mech.username}</td>
+                        <td class="py-4 px-6 font-mono text-slate-300">${mech.password}</td>
+                        <td class="py-4 px-6 text-xs text-slate-300"><strong class="text-emerald-400">${doneCars}</strong> გაშვებული / ${mechCars.length} სულ</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAdminOrdersAndStock() {
+            const ordersTbody = document.getElementById('admin-orders-tbody');
+            const stockTbody = document.getElementById('admin-stock-tbody');
+            document.getElementById('admin-orders-count-badge').textContent = `${orders.length} შეკვეთა`;
+
+            if (orders.length === 0) {
+                ordersTbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">შეკვეთები არ ფიქსირდება.</td></tr>`;
+            } else {
+                ordersTbody.innerHTML = orders.map(o => `
+                    <tr class="hover:bg-slate-850/60 transition">
+                        <td class="py-3.5 px-6 font-bold text-white">${o.partName}</td>
+                        <td class="py-3.5 px-6 font-mono text-slate-300">${o.qty} ცალი</td>
+                        <td class="py-3.5 px-6 font-extrabold text-emerald-400">${o.total} ₾</td>
+                        <td class="py-3.5 px-6 text-slate-300">${o.customer}</td>
+                        <td class="py-3.5 px-6 text-right text-xs text-slate-400">${o.time}</td>
+                    </tr>
+                `).join('');
+            }
+
+            if (parts.length === 0) {
+                stockTbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">საწყობი ცარიელია.</td></tr>`;
+            } else {
+                stockTbody.innerHTML = parts.map(p => `
+                    <tr class="hover:bg-slate-850/60 transition">
+                        <td class="py-3.5 px-6 font-bold text-white">${p.name}</td>
+                        <td class="py-3.5 px-6 text-xs text-slate-400">${p.model}</td>
+                        <td class="py-3.5 px-6 font-bold text-amber-400">${p.price} ₾</td>
+                        <td class="py-3.5 px-6 font-mono font-bold ${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">${p.stock} ცალი</td>
+                        <td class="py-3.5 px-6 text-right">
+                            <button onclick="quickRestockPart(${p.id})" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-emerald-400 font-bold text-xs transition">+1 შევსება</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function renderPartsTable() {
+            const tbody = document.getElementById('public-parts-tbody');
+            const search = document.getElementById('parts-search-input').value.toLowerCase().trim();
+            const catFilter = document.getElementById('parts-category-filter').value;
+            const stockFilter = document.getElementById('parts-stock-filter').value;
+
+            document.getElementById('store-total-types').textContent = parts.length;
+            document.getElementById('store-in-stock-count').textContent = parts.filter(p => p.stock > 0).length;
+
+            const filtered = parts.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(search) || p.model.toLowerCase().includes(search);
+                const matchesCat = catFilter === 'ყველა' || p.category === catFilter;
+                const matchesStock = stockFilter === 'all' || (stockFilter === 'instock' && p.stock > 0) || (stockFilter === 'out' && p.stock === 0);
+                return matchesSearch && matchesCat && matchesStock;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-slate-400 text-sm">ნაწილი ვერ მოიძებნა.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(part => {
+                const inStock = part.stock > 0;
+                return `
+                    <tr class="hover:bg-slate-850/60 transition">
+                        <td class="py-4 px-6"><span class="font-bold text-white block">${part.name}</span></td>
+                        <td class="py-4 px-6"><span class="text-xs text-amber-400 block">${part.category}</span><span class="text-xs text-slate-300">${part.model}</span></td>
+                        <td class="py-4 px-6 font-extrabold text-white text-base">${part.price} ₾</td>
+                        <td class="py-4 px-6"><span class="font-mono font-bold text-sm ${inStock ? 'text-white' : 'text-slate-500'}">${part.stock} ცალი</span></td>
+                        <td class="py-4 px-6">${inStock ? '<span class="text-emerald-400 text-xs font-bold">მარაგშია</span>' : '<span class="text-red-400 text-xs font-bold">ამოწურულია</span>'}</td>
+                        <td class="py-4 px-6 text-right">${inStock ? `<button onclick="openBuyPartModal(${part.id})" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition">ყიდვა</button>` : ''}</td>
+                    </tr>
+                `;
+            }).join('');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function openBuyPartModal(partId) {
+            const part = parts.find(p => p.id === partId);
+            if (!part || part.stock <= 0) return;
+            document.getElementById('buy-part-id').value = part.id;
+            document.getElementById('buy-part-title').textContent = `${part.name} (${part.model})`;
+            document.getElementById('buy-part-unit-price').textContent = `${part.price} ₾`;
+            document.getElementById('buy-part-max-stock').textContent = `${part.stock} ცალი`;
+            document.getElementById('buy-part-qty').max = part.stock;
+            document.getElementById('buy-part-qty').value = 1;
+            updateBuyTotal();
+            openModal('buy-part-modal');
+        }
+
+        function updateBuyTotal() {
+            const partId = parseInt(document.getElementById('buy-part-id').value);
+            const part = parts.find(p => p.id === partId);
+            const qty = parseInt(document.getElementById('buy-part-qty').value) || 1;
+            if (part) {
+                document.getElementById('buy-part-total').textContent = `${part.price * qty} ₾`;
+            }
+        }
+
+        async function confirmBuyPart(e) {
+            e.preventDefault();
+            if (!supabaseClient) return;
+
+            const partId = parseInt(document.getElementById('buy-part-id').value);
+            const qty = parseInt(document.getElementById('buy-part-qty').value);
+            const customer = document.getElementById('buy-customer-info').value.trim();
+
+            const part = parts.find(p => p.id === partId);
+            if (!part || part.stock < qty) return;
+
+            const newStock = part.stock - qty;
+            const newOrder = {
+                id: Date.now(),
+                part_name: part.name,
+                qty: qty,
+                total: part.price * qty,
+                customer: customer,
+                time: new Date().toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            const [updRes, insRes] = await Promise.all([
+                supabaseClient.from('autopro_parts').update({ stock: newStock }).eq('id', part.id),
+                supabaseClient.from('autopro_orders').insert(newOrder)
+            ]);
+
+            if (updRes.error || insRes.error) {
+                showToast('შეცდომა', 'შეკვეთა ვერ გაფორმდა', 'error');
+                return;
+            }
+
+            await syncAllFromSupabase();
+            closeModal('buy-part-modal');
+            showToast('შეკვეთა მიღებულია!', 'მარაგი განახლდა ყველასთვის', 'success');
+        }
+
+        async function handleAddNewPart(e) {
+            e.preventDefault();
+            if (!currentUser || currentUser.role !== 'admin' || !supabaseClient) return;
+
+            const name = document.getElementById('new-part-name').value.trim();
+            const model = document.getElementById('new-part-model').value.trim();
+            const price = parseFloat(document.getElementById('new-part-price').value);
+            const stock = parseInt(document.getElementById('new-part-stock').value);
+
+            const newPart = { id: Date.now(), name, category: 'ავტონაწილები', model, price, stock };
+            const { error } = await supabaseClient.from('autopro_parts').insert(newPart);
+
+            if (error) {
+                showToast('შეცდომა', 'ნაწილი ვერ დაემატა: ' + error.message, 'error');
+                return;
+            }
+
+            await syncAllFromSupabase();
+            e.target.reset();
+            closeModal('manage-part-modal');
+            showToast('ნაწილი დაემატა', name, 'success');
+        }
+
+        async function quickRestockPart(partId) {
+            if (!currentUser || currentUser.role !== 'admin' || !supabaseClient) return;
+            const part = parts.find(p => p.id === partId);
+            if (!part) return;
+
+            await supabaseClient.from('autopro_parts').update({ stock: part.stock + 1 }).eq('id', part.id);
+            await syncAllFromSupabase();
+            showToast('მარაგი შეივსო', part.name, 'success');
+        }
+
+        function handlePhotoPreview(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 500;
+                    const scale = Math.min(1, MAX_WIDTH / img.width);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    uploadedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.65);
+                    document.getElementById('photo-preview-img').src = uploadedPhotoBase64;
+                    document.getElementById('photo-preview-wrapper').classList.remove('hidden');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearPhotoPreview() {
+            uploadedPhotoBase64 = '';
+            document.getElementById('car-photo-input').value = '';
+            document.getElementById('photo-preview-wrapper').classList.add('hidden');
+        }
+
+        async function handleAddCar(e) {
+            e.preventDefault();
+            if (!currentUser || !supabaseClient) return;
+
+            const btn = document.getElementById('btn-submit-car');
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+
+            const plate = document.getElementById('car-plate').value.trim().toUpperCase();
+            const model = document.getElementById('car-model').value.trim();
+            const problem = document.getElementById('car-problem').value.trim();
+            const price = parseFloat(document.getElementById('car-price').value) || 0;
+            const status = document.getElementById('car-status').value;
+
+            let assignedUser = currentUser.username;
+            let assignedName = currentUser.name;
+
+            if (currentUser.role === 'admin') {
+                const selectedMechKey = document.getElementById('car-assign-mechanic').value;
+                if (accounts[selectedMechKey]) {
+                    assignedUser = accounts[selectedMechKey].username;
+                    assignedName = accounts[selectedMechKey].name;
+                }
+            }
+
+            const defaultFallbackPhoto = "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=600&q=80";
+
+            const payload = {
+                id: Date.now(),
+                plate: plate,
+                model: model,
+                problem: problem,
+                price: price,
+                status: status,
+                mechanic_user: assignedUser,
+                mechanic_name: assignedName,
+                photo: uploadedPhotoBase64 || defaultFallbackPhoto,
+                created_at: new Date().toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            const { error } = await supabaseClient.from('autopro_cars').insert(payload);
+
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+
+            if (error) {
+                showToast('შეცდომა', 'მანქანა ვერ შეინახა ბაზაში: ' + error.message, 'error');
+                return;
+            }
+
+            await syncAllFromSupabase();
+            e.target.reset();
+            clearPhotoPreview();
+            showToast('მანქანა დაემატა!', `${plate} — გამოჩნდა ყველა მოწყობილობაზე`, 'success');
+        }
+
+        function renderCarsTable() {
+            if (!currentUser) return;
+            const tbody = document.getElementById('cars-table-tbody');
+            const statusFilter = document.getElementById('car-status-filter').value;
+            const isAdmin = currentUser.role === 'admin';
+            const adminMechFilter = document.getElementById('admin-mechanic-filter').value;
+
+            const filteredCars = cars.filter(car => {
+                const matchesOwner = isAdmin
+                    ? (adminMechFilter === 'all' || car.mechanicUser === adminMechFilter)
+                    : (car.mechanicUser === currentUser.username);
+
+                const matchesStatus = statusFilter === 'all' || car.status === statusFilter;
+                return matchesOwner && matchesStatus;
+            });
+
+            const colSpanCount = isAdmin ? 8 : 7;
+
+            if (filteredCars.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${colSpanCount}" class="py-12 text-center text-slate-400 text-sm">მანქანები არ მოიძებნა.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredCars.map(car => {
+                const isActive = car.status === 'active';
+                return `
+                    <tr class="hover:bg-slate-850/70 transition align-top">
+                        <td class="py-3.5 px-4">
+                            <div onclick="openLightbox(${car.id})" class="w-16 h-12 rounded-xl overflow-hidden border border-white/15 cursor-zoom-in bg-slate-950">
+                                <img src="${car.photo}" onerror="this.src='https://placehold.co/200x150/1e293b/fbbf24?text=Car'" alt="${car.plate}" class="w-full h-full object-cover">
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="geo-plate mb-1.5"><span class="geo-plate-strip">GE</span><span class="geo-plate-num text-xs">${car.plate}</span></div>
+                            <span class="block text-xs font-bold text-white">${car.model}</span>
+                        </td>
+                        <td class="py-3.5 px-4 max-w-[200px]"><p class="text-xs text-slate-300">${car.problem}</p></td>
+                        <td class="py-3.5 px-4 text-center"><span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-white/10 text-[11px] text-amber-300">${isActive ? 'ბოქსში' : 'დასრულებული'}</span></td>
+                        ${isAdmin ? `<td class="py-3.5 px-4"><span class="text-xs text-slate-300">${car.mechanicName}</span></td>` : ''}
+                        <td class="py-3.5 px-4"><span class="font-extrabold text-sm text-amber-400">${car.price} ₾</span></td>
+                        <td class="py-3.5 px-4">
+                            ${isActive 
+                                ? `<button onclick="toggleCarStatus(${car.id})" class="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 text-[11px] font-bold">გასაშვები</button>`
+                                : `<button onclick="toggleCarStatus(${car.id})" class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-[11px] font-bold">გაშვებული</button>`
+                            }
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            <div class="inline-flex items-center gap-1.5">
+                                ${isActive ? `<button onclick="toggleCarStatus(${car.id})" class="px-2 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-[11px] font-bold">გაშვება</button>` : ''}
+                                <button onclick="openEditCarModal(${car.id})" class="p-1.5 rounded-lg bg-slate-800 text-slate-300"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+                                <button onclick="deleteCar(${car.id})" class="p-1.5 rounded-lg bg-slate-800 text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        async function toggleCarStatus(carId) {
+            if (!supabaseClient) return;
+            const car = cars.find(c => c.id === carId);
+            if (!car) return;
+
+            const nextStatus = car.status === 'active' ? 'completed' : 'active';
+            await supabaseClient.from('autopro_cars').update({ status: nextStatus }).eq('id', car.id);
+            await syncAllFromSupabase();
+        }
+
+        function openEditCarModal(carId) {
+            const car = cars.find(c => c.id === carId);
+            if (!car) return;
+            document.getElementById('edit-car-id').value = car.id;
+            document.getElementById('edit-car-subtitle').textContent = car.plate;
+            document.getElementById('edit-car-problem').value = car.problem;
+            document.getElementById('edit-car-price').value = car.price;
+            openModal('edit-car-modal');
+        }
+
+        async function saveCarEdits(e) {
+            e.preventDefault();
+            if (!supabaseClient) return;
+            const carId = parseInt(document.getElementById('edit-car-id').value);
+            const problem = document.getElementById('edit-car-problem').value.trim();
+            const price = parseFloat(document.getElementById('edit-car-price').value) || 0;
+
+            await supabaseClient.from('autopro_cars').update({ problem, price }).eq('id', carId);
+            await syncAllFromSupabase();
+            closeModal('edit-car-modal');
+            showToast('განახლდა', 'ცვლილება შენახულია ყველა მოწყობილობაზე', 'success');
+        }
+
+        async function deleteCar(carId) {
+            if (!supabaseClient) return;
+            await supabaseClient.from('autopro_cars').delete().eq('id', carId);
+            await syncAllFromSupabase();
+            showToast('წაიშალა', 'ჩანაწერი წაიშალა', 'warning');
+        }
+
+        function openLightbox(carId) {
+            const car = cars.find(c => c.id === carId);
+            if (!car) return;
+            document.getElementById('lightbox-img').src = car.photo;
+            document.getElementById('lightbox-plate').textContent = car.plate;
+            document.getElementById('lightbox-desc').textContent = car.problem;
+            document.getElementById('lightbox-price').textContent = `${car.price} ₾`;
+            openModal('image-lightbox-modal');
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
